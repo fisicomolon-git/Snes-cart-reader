@@ -10,3 +10,4 @@ In this Git repository, I'll focus on the cartridge reading aspect, and I'll cre
 
 <img src="https://github.com/fisicomolon-git/Snes-cart-reader/blob/main/images/cart%20reader%20front.jpg" >
 
+The code for this project has two parts. First, there's the Arduino Nano firmware, which reads the cartridge's ROM and SRAM and can also write to the SRAM. Second, there's the Python code that receives and stores the data sent by the Arduino.
