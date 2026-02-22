@@ -1,0 +1,6 @@
+# Archivo de configuración del lector de cartuchos SNES
+# Usa la siguiente sintaxis para indicar la ruta del emulador:
+# emulador "C:\Ruta\al\emulador\snes9x.exe -fullscreen"
+
+emulador "C:\Users\Pedro\Dropbox\python proyectos\Proyecto C\Software windows\dist\snes9x-1.63-win32\snes9x.exe -fullscreen"
+roms "C:\roms"
