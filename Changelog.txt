@@ -1,0 +1,4 @@
+v.0.1.5 09/04/2026
+- Snes dumper: It now sends and receives data in byte format, not in text format as before. Furthermore, a control has been added to the data transmission process to prevent data requests in the background. It now sends data in 64-byte packets and waits for confirmation before proceeding.
+
+- Snes player: No changes

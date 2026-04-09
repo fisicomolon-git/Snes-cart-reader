@@ -1,3 +1,4 @@
+# compilo con:  pyinstaller  --icon=icon.ico "g:/Mi unidad/python proyectos/Proyecto C/git/snes cart reader/source/python/snes player v0.1.5.py"         
 import subprocess
 import threading
 import serial
@@ -246,7 +247,7 @@ archivo_texto = directorio_actual+"/"+"DB.txt"
 # --- INTERFAZ GRÁFICA ---
 ventana = tk.Tk()
 ventana.geometry("500x200")
-ventana.title("SUPER NINTENDO CART PLAYER")
+ventana.title("SUPER NINTENDO CART PLAYER_v.0.1.5")
 ventana.iconbitmap("icon.ico")
 
 # Configuración del grid: 3 columnas y 4 filas para centrar mejor

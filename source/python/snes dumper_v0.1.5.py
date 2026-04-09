@@ -98,7 +98,7 @@ def DUMP_RAM(puerto, baudrate, archivo_salida, inicio, cierre):
                             min =  math.trunc(total_time/60)
                             sec = round((total_time - (min*60)),)
                             messagebox.showinfo('DUMP DONE', "The SRAM has been succesfully dumped \n in "+str(min)+" minutes and "+str(sec)+" seconds")
-                            etiqueta2.config(text=f"No info obtained from cart")                                              # label error
+                            etiqueta2.config(text=f"No info obtained from cart")  # label error
                             etiqueta2.config(fg="red")
                             boton_enviar["state"] = "active"
                             continue
@@ -130,24 +130,14 @@ def cart_info():
         try:
             with serial.Serial(puerto_ch340, baudios, timeout=1) as ser:
                 time.sleep(2)
-                '''
-                while ser.in_waiting > 0:
-                    ser.read(ser.in_waiting)
-                    time.sleep(0.05)  # da tiempo a que terminen de llegar bytes
-
-                # Esperar un poco más, por si el micro manda más datos al arrancar
-                time.sleep(2)
-                while ser.in_waiting > 0:
-                    ser.read(ser.in_waiting)
-                '''
 
                 ser.reset_input_buffer()
                 ser.write(b'b')  # Envía el carácter 'b'
                 bytes_recibidos = ser.readline() # si el boton está pulsado hacia arriba, como tiene que estar, al leer el puerto serie, primero manda el nombre del cartucho y luego ya la info.
-                print (bytes_recibidos)
+                #print (bytes_recibidos)
                 #bytes_recibidos = ser.readline() #vuelvo a leer la siguiente linea machacando la anterior que era el codigo para lanzar el juego
                 ser.close()
-                print (bytes_recibidos)
+                #print (bytes_recibidos)
 
                 palabra= bytes_recibidos.decode("utf-8")
                 palabra_list = palabra.rsplit("*") #partimos por * que he usado como separador entre bytes en el codigo de arduino.
@@ -202,7 +192,7 @@ def cart_info():
                 #print (bytes_recibidos[15])
 
                 if palabra_list[0]!='0': #ningun nombre comienza por 0 (48 ascii) así que si es distinto es que algún nombre ha leido
-                    lines = ['Name: '+nombre, 'Rom type: '+romtype, 'Rom size: '+romsizekB+' kbytes - '+ romsizeMb+' Mbits', 'Sram size: '+sramsizekB+ ' '+sramsizekb, 'Region: '+region, 'Time needed to dump: '+str(int(romsizeMb)*0.625)+' min. aprox.' ]
+                    lines = ['Name: '+nombre, 'Rom type: '+romtype, 'Rom size: '+romsizekB+' kbytes - '+ romsizeMb+' Mbits', 'Sram size: '+sramsizekB+ ' '+sramsizekb, 'Region: '+region, 'Time needed to dump: '+str(int(romsizeMb)*10)+' seg. aprox. '+str(int(romsizeMb)*0.16)+'min. aprox.' ]
                     print (lines)
                     messagebox.showinfo('Cart Info', "\n".join(lines))
                     boton_iniciar["state"] = "active"
@@ -226,82 +216,52 @@ def cart_info():
 
 
 ###DUMP ROM###
-def DUMP(puerto, baudrate, archivo_salida, inicio, cierre):
+def DUMP(puerto, baudrate, archivo_salida):
     """Función para escuchar el puerto serie en un hilo separado."""
     global nombre
     global running
+    BLOCK_SIZE = 64 # Debe coincidir con el de Arduino
+    print(puerto)
+    print(baudrate)
     if nombre:
         try:
             with serial.Serial(puerto, baudrate, timeout=1) as ser:
-                time.sleep(2)
+                time.sleep(2) # Esperar reset de Arduino
+                contador=0
+                os.makedirs(".\\roms", exist_ok=True)
+                with open(".\\roms\\"+archivo_salida, "wb") as archivo:
+                    ser.write(b'a') # Iniciar lectura
+                    time.sleep(0.1)
+                    
+                    # Leer tamaño inicial
+                    size_byte = ser.read(1)
+                    while not size_byte:
+                        size_byte = ser.read(1)
+                    
+                    romsize = 2**size_byte[0] * 1024
+                    print(f"Size: {romsize} bytes")
+                    
+                    bytes_recibidos = 0
+                    inicio = time.perf_counter()
 
-                while ser.in_waiting > 0:
-                    ser.read(ser.in_waiting)
-                    time.sleep(0.05)  # da tiempo a que terminen de llegar bytes
-
-                # Esperar un poco más, por si el micro manda más datos al arrancar
-                time.sleep(0.5)
-                while ser.in_waiting > 0:
-                    ser.read(ser.in_waiting)
-
-                ser.write(b'a')  # Envía el carácter 'a'
-                print("Carácter 'a' enviado")
-                print(f"Escuchando en {puerto} a {baudrate} baudios...")
-                archivo = None
-                escribiendo = False
-                leyendo = True
-
-                while leyendo:
-                    linea = ser.readline()
-                    if linea.strip(b'\x00'):  # Ignorar bytes vacíos
-                        texto = linea.decode('utf-8', errors='ignore').strip()
-                        if texto == inicio and not escribiendo:
-                            archivo = open(archivo_salida, 'wb')
-                            escribiendo = True
-                            start_time = time.time()
-                            boton_enviar["state"] = "disabled"
-                            boton_iniciar["state"] = "disabled"
-                            boton_iniciar_sram["state"] = "disabled"
-                            boton_enviar_sram["state"] = "disabled"
-                            print("inicio")
-
-                            ###inicio animacion de carga
-                            global running
-                            running = True
-                            ##threading.Thread(target=animate_text, args=(etiqueta,), daemon=True).start()
-                            ##########################
-                            continue
-
-                        if texto == cierre and escribiendo:
-                            archivo.close()
-                            escribiendo = False
-                            leyendo = False
-                            print("fin")
-                            time.sleep(2)
-                            ser.close()
-                            # Llama a la función con los nombres de los archivos
-                            os.makedirs('roms', exist_ok=True) #crea la carpeta sino existe
-                            convertir_texto_a_binario_memoria('.\\'+nombre+'.txt', '.\\roms\\'+nombre+'('+region+')'+'.sfc')
-                            ############paro animación de carga
+                    while bytes_recibidos < romsize:
+                        # Si hay datos, los leemos
+                        if ser.in_waiting >= BLOCK_SIZE:
+                            data = ser.read(BLOCK_SIZE)
+                            archivo.write(data)
+                            bytes_recibidos += len(data)
                             
-                            running = False
-                            ####################
-                            nombre= None
-                            finish_time = time.time()
-                            total_time = finish_time - start_time
-                            #total_time = 540
-                            min =  math.trunc(total_time/60)
-                            sec = round((total_time - (min*60)),)
-                            messagebox.showinfo('DUMP DONE', "The cartridge has been succesfully dumped \n in "+str(min)+" minutes and "+str(sec)+" seconds")
-                            etiqueta2.config(text=f"No info obtained from cart")                                              # label error
-                            etiqueta2.config(fg="red")
-                            boton_enviar["state"] = "active"
-                            continue
+                            # ENVIAR CONFIRMACIÓN AL ARDUINO
+                            contador = contador + 1
+                            print(f"\rProgress: {round((64*contador/romsize)*100)}% completado", end="")
+                            ser.write(b'K') 
+                    
+                    fin = time.perf_counter()
+                    print("")
+                    print(f"Completado en: {fin - inicio:.3f}s")
+                    messagebox.showinfo("Éxito", f"Dump done in {round(fin - inicio)}s")
 
-                        if escribiendo:
-                            #archivo.write(texto + '\n')
-                            archivo.write(linea)
-                            archivo.flush()
+        
         except serial.SerialException as e:
             nombre = None
             messagebox.showerror(title="ERROR", message="Error comunicating withe cart reader. Did you unplug the reader?", )
@@ -332,7 +292,7 @@ def start_dump():
 
     if puerto_ch340:
         if nombre:
-            hilo_serial = threading.Thread(target=DUMP, args=(puerto_ch340, baudios, ".\\"+nombre+'.txt', "<", ">"), daemon=True)
+            hilo_serial = threading.Thread(target=DUMP, args=(puerto_ch340, baudios, ".\\"+nombre+'.sfc'), daemon=True)
             hilo_serial.start()
         else:
             messagebox.showerror(title="ERROR", message="Get cart info first", )
@@ -439,7 +399,7 @@ def send_sram():
 # --- INTERFAZ GRÁFICA ---
 ventana = tk.Tk()
 ventana.geometry("500x200")
-ventana.title("SNES DUMP ROM v.0.1.4")
+ventana.title("SNES DUMP ROM v.0.1.5")
 ventana.iconbitmap("icon.ico")
 ventana.columnconfigure(1, weight=1)
 ventana.columnconfigure(2, weight=1)

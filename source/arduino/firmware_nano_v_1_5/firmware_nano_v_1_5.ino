@@ -1,4 +1,6 @@
 //v 1.3 vamos a incluir el lanzamiento de emulador al subir el pulsador.
+//v 1.5 vamos a enviar el dato como byte en lugar de como texto y mandar en bloques de 64 bytes y esperar confirmación antes de mandar más. Con esto conseguimos que la aplicación no pierda datos en segundo plano.
+// hay que usar serial.write en lugar de serial.println
 
 #include<SPI.h>
 // DIRECCION DE MEMORIA DEL PAIS FFD9. VALOR 0 ES JAPONES, VALOR 2 ES PAL.
@@ -8,6 +10,7 @@ byte solounavez=0;
 byte solounavez_interruptor=0;
 int fin=0;
 unsigned int numero;
+unsigned int contador;
 unsigned int numerorom;
 unsigned int specialchip;
 unsigned int endbank;
@@ -25,7 +28,6 @@ byte errorRom=0;
 String cadena;
 String numero_fix;
 String letra;
-
 
 
 const int snesReadPin = A1; //Cart pin 23 - aka /RD - Address bus read
@@ -410,7 +412,6 @@ if (Byte_recibido == 'b'){ // enviar la informacion del cartucho
 /////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 if (Byte_recibido == 'a'){  /// descargamos la rom
-
   if (estado==0){ //estado es para que se ejecute solo una vez
     //ESTE IF ES PARA COMPROBAR SI ES LOROM O HIROM
 
@@ -424,7 +425,7 @@ if (Byte_recibido == 'a'){  /// descargamos la rom
     writeAddrBus(bank, addr); // read byte for type room 
     delayMicroseconds(60);
     numerorom = (readDataBus());
-    Serial.println(numerorom);
+    //Serial.println(numerorom);
   
     
 
@@ -433,6 +434,7 @@ if (Byte_recibido == 'a'){  /// descargamos la rom
     writeAddrBus(bank, addr); // read byte for type room 
     delayMicroseconds(60);
     romsize = (readDataBus());
+    Serial.write(romsize);
     if(numerorom==49){ banksize = round(pow (2,romsize)/64);} // HIROM calculo el numero de banks que ocupa la rom
     if(numerorom==32 || numerorom==48){ banksize = round(pow (2,romsize)/32);} // LOROM calculo el numero de banks que ocupa la rom
     //Serial.println(banksize); // debug
@@ -448,7 +450,7 @@ if (Byte_recibido == 'a'){  /// descargamos la rom
         addr = 0x8000; //65472;   DIRECCION INICIAL 
         endAddr = 0xFFFF; //65503; DIRECCION FINAL UN BYTE MENOS PORQUE EL ULTIMO SE LO PASA.
         estado=1; //para que no se repita este if
-        Serial.println("<"); //caracter de inicio para que el programa en python comience a escribir el archivo
+        //Serial.println("<"); //caracter de inicio para que el programa en python comience a escribir el archivo
         //delay(20);
 
       }else if (numerorom==49){// HIROM  //0X30 = 48 // 31 en hex es 49 en decimal
@@ -463,7 +465,7 @@ if (Byte_recibido == 'a'){  /// descargamos la rom
         endAddr = 0xFFFF; //; DIRECCION FINAL DUMP HIROM
         estado=1; //para que no se repita este if
 
-        Serial.println("<"); //caracter de inicio para que el programa en python comience a escribir el archivo
+        //Serial.println("<"); //caracter de inicio para que el programa en python comience a escribir el archivo
         //delay(20);
       } else {
         Serial.println("Error reading type ROM");
@@ -478,31 +480,21 @@ if (Byte_recibido == 'a'){  /// descargamos la rom
       
       //setDataBusDir(INPUT);
      //Serial.println(millis());
+        contador=0;
         while (true){
-        if (solounavez==0 && errorRom==0){
-          //Serial.print("bank:");//debug
-          //Serial.print(bank);//debug
-          //Serial.print("--"); //debug
-          //Serial.print("addr:"); //debug
-          //Serial.print(addr,HEX); //debug
-          //Serial.print("--"); //debug
-
-        //empezamos a mandar bytes
-        //mando el byte de apertura para que el programa en python empiece a leer "<"
-        
+        if (solounavez==0 && errorRom==0){    
          writeAddrBus(bank, addr);
-          delayMicroseconds(2);//delay(1); //change to 2 if you get reading errors.
-          numero = (readDataBus());
-          //Serial.println(numero);
-          letra = String(numero,HEX);         
-        if (numero<16){
-          Serial.print("0");
-        }
-        Serial.println(readDataBus(),HEX);
-        
-        
-        //cadena.concat(letra); // the title is readed char by char, this line put togheter all the character
-        //cadenanumero.concat(numero_fix);
+         delayMicroseconds(2);
+         Serial.write(readDataBus());
+         contador = contador +1;
+         if (contador==64){  // mando 64 bytes y espero confirmación para asegurarme que se han leido antes de mandar los siguientes
+          while (Serial.available() == 0) { // cualquier dato enviado por python confirma la lectura.
+            // Espera activa hasta recibir confirmación
+          }
+          Serial.read(); // Limpiar el byte de confirmación
+          contador=0;
+          }
+
         }  
           
           if (addr == endAddr ) {
@@ -520,7 +512,7 @@ if (Byte_recibido == 'a'){  /// descargamos la rom
                 solounavez=1;
                 cadena="";
                 cadenanumero="";
-                Serial.println(">"); //caracter de salida//ya he terminado, Envio dato de cierre ">"
+                //Serial.println(">"); //caracter de salida//ya he terminado, Envio dato de cierre ">"
                 
               
               }
