@@ -86,7 +86,7 @@ def DUMP_RAM(puerto, baudrate, archivo_salida, inicio, cierre):
                             ser.close()
                             os.makedirs('roms', exist_ok=True) #crea la carpeta sino existe
                             # Llama a la función con los nombres de los archivos
-                            convertir_texto_a_binario_memoria('.\\'+nombre+'_srm.txt', '.\\roms\\'+nombre+'('+region+')'+'.srm')
+                            convertir_texto_a_binario_memoria('.\\'+nombre+'_srm.txt', '.\\roms\\'+nombre+' ('+region+')'+'.srm')
                             ############paro animación de carga
                             
                             running = False
@@ -292,7 +292,7 @@ def start_dump():
 
     if puerto_ch340:
         if nombre:
-            hilo_serial = threading.Thread(target=DUMP, args=(puerto_ch340, baudios, ".\\"+nombre+'.sfc'), daemon=True)
+            hilo_serial = threading.Thread(target=DUMP, args=(puerto_ch340, baudios, ".\\"+nombre+' ('+region+')'+'.sfc'), daemon=True)
             hilo_serial.start()
         else:
             messagebox.showerror(title="ERROR", message="Get cart info first", )
